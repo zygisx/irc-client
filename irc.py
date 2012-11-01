@@ -15,10 +15,6 @@ CHANNEL = '#ubuntu'
 
 DATA_RECEIVED_EVENT = wx.NewId()
 
-def EVT_RESULT(win, func):
-	"""Define Result Event."""
-	win.Connect(-1, -1, DATA_RECEIVED_EVENT, func)
-
 class ResultEvent(wx.PyEvent):
 
 	def __init__(self, data):
@@ -32,7 +28,6 @@ class Worker(threading.Thread):
 	def __init__(self, notify_window):
 		"""Init Worker Thread Class."""
 		threading.Thread.__init__(self)
-
 		self._notify_window = notify_window
 		self.start()
 		
