@@ -4,25 +4,30 @@ import socket
 
 class IRCClient():
 
-    def __init__(self, server, nick, fullname, port=6667):
+    def __init__(self, connectionInfo):
 
-        self.server = server
-        self.nick = nick
-        self.fullname = fullname
-        self.port = port
-        self.channels = {}
+        self.server = connectionInfo.server
+        self.nick = connectionInfo.nick
+        self.fullname = connectionInfo.fullname
+        self.port = connectionInfo.port
+        self.channels = []
         self.socket = None
 
     def connect(self):
-        irc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        irc_socket.connect((self.server, self.port))
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.server, self.port))
 
-        irc_socket.send('NICK {0}\r\n'.format(self.nick))
-        irc_socket.send('USER {0} 8 * :{1}\r\n'.format(self.nick, self.fullname))
+        self.socket.send('NICK {0}\r\n'.format(self.nick))
+        self.socket.send('USER {0} 8 * :{1}\r\n'.format(self.nick, self.fullname))
+
+    def disconnect(self):
+        """ Send QUIT messages to all channels
+        """
+        pass
 
     def joinChannel(self, channel):
         self.socket.send('JOIN {0}\r\n'.format(channel))
-        self.channels[channel] = ChannelManager(channel, self.socket)
+        self.channels.append(channel)
 
     def receiveData(self):
         
@@ -33,10 +38,16 @@ class IRCClient():
         
 
     def sendMessage(self, message):
+        message = self.__makeMessage(message)
+        self.socket.send(message)
+
+
         pass
 
     def __makeMessage(self, message):
-        pass
+        """ make message to appropriate irc format
+        """
+        return message
 
     def getUsersInChannel(self):
         pass
@@ -49,6 +60,4 @@ class IRCClient():
 
     channel = property(getChannel, setChannel, doc="current channel")
 
-class ChannelManager():
-    pass
 
