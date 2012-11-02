@@ -16,7 +16,7 @@ CHANNEL = '#ubuntu'
 
 DATA_RECEIVED_EVENT = wx.NewId()
 
-class ResultEvent(wx.PyEvent):
+class DataReceivedEvent(wx.PyEvent):
     def __init__(self, data):
         """Init Result Event."""
         wx.PyEvent.__init__(self)
@@ -43,7 +43,7 @@ class Worker(threading.Thread):
 
         while 1:
             data = self._client.receiveData()
-            wx.PostEvent(self._notify_window, ResultEvent(data + '\n'))
+            wx.PostEvent(self._notify_window, DataReceivedEvent(data + '\n'))
             print data
 
 
@@ -60,7 +60,7 @@ class MainFrame(wx.Frame):
         label =  wx.StaticText(panel, wx.ID_ANY, 'Text: ')
         self.input = wx.TextCtrl(panel, size=(400, 20))
         self.button = wx.Button(panel, -1, "Send")
-        self.Bind(wx.EVT_BUTTON, self.Send, self.button)
+        self.Bind(wx.EVT_BUTTON, self.send, self.button)
 
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -93,10 +93,8 @@ class MainFrame(wx.Frame):
     def onDataReceived(self, event):
         self.received.AppendText(event.data)
 
-    def OnCloseWindow(self, event):
-        self.Close()
+    def send(self, event):
 
-    def Send(self, event):
         pass
 
 class InitFrame(wx.Frame):
@@ -192,7 +190,7 @@ class InitFrame(wx.Frame):
         """
         #TODO data can't spread to all frames
         for v in self.frames.itervalues():
-            wx.PostEvent(v, ResultEvent(event.data + '\n'))
+            wx.PostEvent(v, DataReceivedEvent(event.data + '\n'))
 
     def onChannelJoin(self, event):
 
@@ -206,16 +204,11 @@ class InitFrame(wx.Frame):
     def onConnect(self, event):
         info = ConnectionInfo()
         #TODO uncomment those lines
-        """
-        info.server = self.serverInput.GetValue()
-        info.port = self.portInput.GetValue()
-        info.nick = self.nickInput.GetValue()
-        info.fullname = self.nameInput.GetValue()
-        """
-        info.server = URL
-        info.port = PORT
-        info.nick = NICK
-        info.fullname = FULL_NAME
+
+        if not self.serverInput.IsEmpty(): info.server = self.serverInput.GetValue()
+        if not self.portInput.IsEmpty(): info.port = self.portInput.GetValue()
+        if not self.nickInput.IsEmpty(): info.nick = self.nickInput.GetValue()
+        if not self.nameInput.IsEmpty(): info.fullname = self.nameInput.GetValue()
 
         self.client = IRCClient(info)
         self.client.connect()
