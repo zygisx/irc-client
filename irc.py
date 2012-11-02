@@ -24,6 +24,8 @@ class DataReceivedEvent(wx.PyEvent):
         self.data = data
 
 class ConnectionInfo():
+    """ class for grouping connection information in one structure
+    """
     server = URL
     port = PORT
     password = ''
@@ -48,8 +50,9 @@ class Worker(threading.Thread):
 
 
 
-class MainFrame(wx.Frame):
-
+class ChatFrame(wx.Frame):
+    """ window for chatting in one channel
+    """
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, -1, title)
 
@@ -60,7 +63,7 @@ class MainFrame(wx.Frame):
         label =  wx.StaticText(panel, wx.ID_ANY, 'Text: ')
         self.input = wx.TextCtrl(panel, size=(400, 20))
         self.button = wx.Button(panel, -1, "Send")
-        self.Bind(wx.EVT_BUTTON, self.send, self.button)
+        self.Bind(wx.EVT_BUTTON, self.onSend, self.button)
 
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -78,27 +81,19 @@ class MainFrame(wx.Frame):
         panel.SetSizer(main_sizer)
         main_sizer.Fit(self)
 
-
-        #EVT_RESULT(self,self.onDataReceived)
-
-        #self.received  = wx.TextCtrl(panel, pos=(3, 3), size=(250, 150), style=wx.TE_MULTILINE)
-        #wx.TextCtrl(panel, pos=(3, 3), size=(250, 150))
-
         #self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
-
-        #self.worker = Worker(self)
 
         self.Show()
 		
     def onDataReceived(self, event):
         self.received.AppendText(event.data)
 
-    def send(self, event):
-
+    def onSend(self, event):
         pass
 
-class InitFrame(wx.Frame):
-
+class MainFrame(wx.Frame):
+    """ Parent frame.
+    """
     def __init__(self):
         wx.Frame.__init__(self, None, -1, 'IRC Client')
         wx.Frame.Connect(self, -1, -1, DATA_RECEIVED_EVENT, self.onDataReceived)
@@ -193,18 +188,17 @@ class InitFrame(wx.Frame):
             wx.PostEvent(v, DataReceivedEvent(event.data + '\n'))
 
     def onChannelJoin(self, event):
-
+        """ when joining new channel we create new ChatFrame for chatting in particular channel
+        """
         self.client.joinChannel(self.channel.GetValue())
 
-        self.frames[self.channel.GetValue()] = MainFrame(self, self.channel.GetValue())
+        self.frames[self.channel.GetValue()] = ChatFrame(self, self.channel.GetValue())
         self.frames[self.channel.GetValue()].Show()
 
         self.channel.Clear()
 
     def onConnect(self, event):
         info = ConnectionInfo()
-        #TODO uncomment those lines
-
         if not self.serverInput.IsEmpty(): info.server = self.serverInput.GetValue()
         if not self.portInput.IsEmpty(): info.port = self.portInput.GetValue()
         if not self.nickInput.IsEmpty(): info.nick = self.nickInput.GetValue()
@@ -232,7 +226,7 @@ class InitFrame(wx.Frame):
 
 def main():
     ex = wx.App(False)
-    InitFrame()
+    MainFrame()
     ex.MainLoop()
     return 0
 
