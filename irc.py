@@ -91,7 +91,7 @@ class ChatFrame(wx.Frame):
     def onDataReceived(self, event):
         text = "%s: %s\n" %  (event.data['nick'], event.data['message'])
 
-        self.__received.AppendText(text)
+        self.__received.AppendText(text.decode('utf-8'))
 
     def onSend(self, event):
         """ send button handler. Notify parent frame about send operation
@@ -195,13 +195,13 @@ class MainFrame(wx.Frame):
         """ parent frame gets data and put them in particular channel frame
         """
 
-#        if event.data['channel'] != '' and event.data['channel'] != 'all':
-#            wx.PostEvent(self.frames[event.data['channel']], DataReceivedEvent(event.data))
-#        else:
-#            pass #TODO add text to main window
+        if event.data.has_key('channel') and event.data['channel'] != '' and event.data['channel'] != 'all':
+            wx.PostEvent(self.frames[event.data['channel']], DataReceivedEvent(event.data))
+        else:
+            #TODO add text top main window
+            for v in self.frames.itervalues():
+                wx.PostEvent(v, DataReceivedEvent(event.data))
 
-        for v in self.frames.itervalues():
-            wx.PostEvent(v, DataReceivedEvent(event.data))
 
     def onDataSend(self, event):
         #TODO send message with PRIVMSG channel_name
