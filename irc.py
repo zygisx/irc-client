@@ -15,12 +15,19 @@ FULL_NAME = 'Zygimantas'
 CHANNEL = '#ubuntu'
 
 DATA_RECEIVED_EVENT = wx.NewId()
+DATA_SEND_EVENT = wx.NewId()
 
 class DataReceivedEvent(wx.PyEvent):
     def __init__(self, data):
-        """Init Result Event."""
         wx.PyEvent.__init__(self)
         self.SetEventType(DATA_RECEIVED_EVENT)
+        self.data = data
+
+class DataSendEvent(wx.PyEvent):
+    def __init__(self, target, data):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(DATA_SEND_EVENT)
+        self.target = target
         self.data = data
 
 class ConnectionInfo():
@@ -45,25 +52,21 @@ class Worker(threading.Thread):
 
         while 1:
             data = self._client.receiveData()
-            wx.PostEvent(self._notify_window, DataReceivedEvent(data + '\n'))
-            print data
-
-
+            wx.PostEvent(self._notify_window, DataReceivedEvent(data))
 
 class ChatFrame(wx.Frame):
     """ window for chatting in one channel
     """
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, -1, title)
-
         panel = wx.Panel(self, -1)
-        self.received  = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(500, 600))
+        self.__received  = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(500, 600))
         wx.Frame.Connect(self, -1, -1, DATA_RECEIVED_EVENT, self.onDataReceived)
 
         label =  wx.StaticText(panel, wx.ID_ANY, 'Text: ')
-        self.input = wx.TextCtrl(panel, size=(400, 20))
-        self.button = wx.Button(panel, -1, "Send")
-        self.Bind(wx.EVT_BUTTON, self.onSend, self.button)
+        self.__input = wx.TextCtrl(panel, size=(400, 20))
+        self.__button = wx.Button(panel, -1, "Send")
+        self.Bind(wx.EVT_BUTTON, self.onSend, self.__button)
 
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -72,11 +75,11 @@ class ChatFrame(wx.Frame):
 
 
         input_sizer.Add(label, 0, wx.ALL, 5)
-        input_sizer.Add(self.input, 0, wx.ALL, 5)
-        input_sizer.Add(self.button, 0, wx.ALL, 5)
+        input_sizer.Add(self.__input, 0, wx.ALL, 5)
+        input_sizer.Add(self.__button, 0, wx.ALL, 5)
         input_sizer.Fit(panel)
 
-        main_sizer.Add(self.received,  0, wx.ALL, 5)
+        main_sizer.Add(self.__received,  0, wx.ALL, 5)
         main_sizer.Add(input_sizer, 0, wx.ALL, 5)
         panel.SetSizer(main_sizer)
         main_sizer.Fit(self)
@@ -86,10 +89,17 @@ class ChatFrame(wx.Frame):
         self.Show()
 		
     def onDataReceived(self, event):
-        self.received.AppendText(event.data)
+        text = "%s: %s\n" %  (event.data['nick'], event.data['message'])
+
+        self.__received.AppendText(text)
 
     def onSend(self, event):
-        pass
+        """ send button handler. Notify parent frame about send operation
+        """
+        wx.PostEvent(self.GetParent(), DataSendEvent(self.GetTitle(), self.__input.GetValue() + '\n'))
+        self.__received.AppendText("{0}: {1}\n".format(self.GetParent().getClient().nick, self.__input.GetValue()))
+        self.__input.Clear()
+
 
 class MainFrame(wx.Frame):
     """ Parent frame.
@@ -97,9 +107,10 @@ class MainFrame(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, -1, 'IRC Client')
         wx.Frame.Connect(self, -1, -1, DATA_RECEIVED_EVENT, self.onDataReceived)
+        wx.Frame.Connect(self, -1, -1, DATA_SEND_EVENT, self.onDataSend)
 
         self.frames = {}
-        self.client = None
+        self.__client = None
 
         self.topPanel = wx.Panel(self)
         self.bottomPanel = wx.Panel(self)
@@ -183,14 +194,23 @@ class MainFrame(wx.Frame):
     def onDataReceived(self, event):
         """ parent frame gets data and put them in particular channel frame
         """
-        #TODO data can't spread to all frames
+
+#        if event.data['channel'] != '' and event.data['channel'] != 'all':
+#            wx.PostEvent(self.frames[event.data['channel']], DataReceivedEvent(event.data))
+#        else:
+#            pass #TODO add text to main window
+
         for v in self.frames.itervalues():
-            wx.PostEvent(v, DataReceivedEvent(event.data + '\n'))
+            wx.PostEvent(v, DataReceivedEvent(event.data))
+
+    def onDataSend(self, event):
+        #TODO send message with PRIVMSG channel_name
+        self.__client.sendMessage(event.target, event.data)
 
     def onChannelJoin(self, event):
         """ when joining new channel we create new ChatFrame for chatting in particular channel
         """
-        self.client.joinChannel(self.channel.GetValue())
+        self.__client.joinChannel(self.channel.GetValue())
 
         self.frames[self.channel.GetValue()] = ChatFrame(self, self.channel.GetValue())
         self.frames[self.channel.GetValue()].Show()
@@ -204,17 +224,17 @@ class MainFrame(wx.Frame):
         if not self.nickInput.IsEmpty(): info.nick = self.nickInput.GetValue()
         if not self.nameInput.IsEmpty(): info.fullname = self.nameInput.GetValue()
 
-        self.client = IRCClient(info)
-        self.client.connect()
+        self.__client = IRCClient(info)
+        self.__client.connect()
 
-        self.worker = Worker(self, self.client)
+        self.worker = Worker(self, self.__client)
 
         self.connectButton.Enable(False)
         self.disconnectButton.Enable(True)
         self.bottomPanel.Enable(True)
 
     def onDisconnect(self, event):
-        self.client = None
+        self.__client = None
 
         self.connectButton.Enable(True)
         self.disconnectButton.Enable(False)
@@ -222,6 +242,9 @@ class MainFrame(wx.Frame):
 
     def removeChildFrame(self, channel):
         del self.frames[channel]
+
+    def getClient(self):
+        return self.__client
 
 
 def main():
