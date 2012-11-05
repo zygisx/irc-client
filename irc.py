@@ -32,7 +32,6 @@ class Worker(threading.Thread):
 	def __init__(self, notify_window):
 		"""Init Worker Thread Class."""
 		threading.Thread.__init__(self)
-
 		self._notify_window = notify_window
 		self.start()
 		
